@@ -1,0 +1,177 @@
+# Battleships by Luke Clements and James Cloney
+from random import randint
+from tkinter import *
+from PIL import Image, ImageTk
+import random as rn
+
+def create_popup():
+    """creates a popup that tells the user to continue placing there ships down"""
+    popup = Toplevel()
+    popup.title("alert")
+    popup.geometry("300x200")
+    label = Label(popup, text=" Finish placing your ship before Shooting")
+    label.pack(pady=20)
+    button = Button(popup, text="Close", command=popup.destroy)
+    button.pack(pady=20)
+def endgame_popup(x):
+    """creates a popup that tell the user that the game is over and if the won/lost"""
+    popup = Toplevel()
+    popup.title('game over')
+    popup.geometry("300x200")
+    label = Label(popup, text=x)
+    label.pack(pady=20)
+    button = Button(popup, text="Close", command=popup.destroy)
+    button.pack(pady=20)
+
+
+def resize_image(input_path, size):
+    """Allow the user to input an image and resize it to any size"""
+    with Image.open(input_path) as img:
+        resized_img = img.resize(size, Image.LANCZOS)
+    return ImageTk.PhotoImage(resized_img)
+
+def update_move_counter():
+    """Update the move counter label"""
+    move_counter_label.config(text=f"Player Moves: {player_moves} | Computer Moves: {comp_moves}")
+
+def comp_shoot():
+    """Simulate computer shooting on random grid coordinates"""
+    global comp_hit_count, comp_moves
+    row = rn.randint(0, 9)
+    col = rn.randint(0, 9)
+    coordinate_placed = (row, col)
+    comp_moves += 1
+    update_move_counter()
+    if coordinate_placed not in comp_shots:  # Ensure the computer does not shoot the same spot
+        comp_shots.add(coordinate_placed)
+        if coordinate_placed in placed_ships:
+            buttons[row][col].config(bg='red', fg='white', state=DISABLED, text="Hit", font=('Comic Sans', 10, 'bold'))
+            comp_hit_count += 1
+            check_endgame()
+            comp_shoot()
+        else:
+            buttons[row][col].config(bg='white', activeforeground='red', state=DISABLED, text="Miss",
+                                         font=('Comic Sans', 10, 'bold'))
+
+def shoot_firing_grid(row, col):
+    """Handle shooting on the firing grid"""
+    global p_hit_count,player_moves
+    if placed_ships_count == 17:
+        row = int(row)
+        col = int(col)
+        coordinate_placed = (row, col)
+        player_moves += 1
+        update_move_counter()
+        if coordinate_placed in placed_ships_1:
+            firing_buttons[row][col].config(bg='red', fg='white', state=DISABLED, text="Hit", font=('Comic Sans', 10, 'bold'))
+            p_hit_count += 1
+            check_endgame()
+        else:
+            firing_buttons[row][col].config(bg='white', activeforeground='red', state=DISABLED, text="Miss",
+                                            font=('Comic Sans', 10, 'bold'))
+            comp_shoot()
+    else:
+        create_popup()
+
+def check_endgame():
+    """Check if the game has ended"""
+    if p_hit_count == 17:
+        window.destroy()
+        endgame_popup('You Win')
+    elif comp_hit_count == 17:
+        window.destroy()
+        endgame_popup('You Lose')
+
+def place_ship(row, col):
+    """Allow the user to place and delete ship while storing the coordinates"""
+    global placed_ships_count
+    row = int(row)
+    col = int(col)
+    let = {0: 'a', 1: 'b', 2: 'c', 3: 'd', 4: 'e', 5: 'f', 6: 'g', 7: 'h', 8: 'i', 9: 'j'}
+    if (row, col) in placed_ships:
+        buttons[row][col].config(bg='#48aadb', state=NORMAL, text=f"{row + 1}{let[col]}")
+        placed_ships.pop((row, col))
+        placed_ships_count -= 1
+    else:
+        if placed_ships_count < MAX_SHIPS:
+            buttons[row][col].config(bg='grey', text="Ship", font=('Comic Sans', 10, 'bold'))
+            placed_ships[(row, col)] = True
+            placed_ships_count += 1
+            print(f"Ships placed: {list(placed_ships.keys())}")
+        else:
+            print(f"Maximum number of ships ({MAX_SHIPS}) reached!")
+
+# Set up the display window
+window = Tk()
+window.geometry("1400x700")
+window.title("BattleShips")
+
+# ship info
+MAX_SHIPS = 17
+placed_ships = {}
+placed_ships_1 = {} #computers ships
+placed_ships_count = 0
+comp_shots = set()
+
+# Other variables
+icon_path = 'img.png'
+row_count = 10
+columns = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j']
+count = 0
+p_hit_count = 0
+comp_hit_count = 0
+player_moves = 0
+comp_moves = 0
+
+# For the label in the top middle
+icon_image = resize_image(icon_path, (100, 100))
+window.iconphoto(True, icon_image)
+window.config(bg="#62cff0")
+label = Label(window, text="Battleships", font=('Times New Roman', 40, 'bold'), fg='black', bg='#717475',
+              relief=SUNKEN, bd=10, padx=20, pady=10, image=icon_image, compound="left")
+label.pack()
+
+# Move counter label
+move_counter_label = Label(window, text=f"Player Moves: {player_moves} | Computer Moves: {comp_moves}",
+                           font=('Comic Sans', 15, 'bold'), bg='#62cff0')
+move_counter_label.place(x=980, y=30)
+
+# Grid dimensions
+button_width = 5
+button_height = 2
+button_padding = 5
+buttons = []
+firing_buttons = []
+
+# Firing grid
+for i in range(row_count):
+    firing_row = []
+    for j, col in enumerate(columns):
+        button = Button(window, width=button_width, height=button_height, text=f"{i + 1}{col}",
+                        command=lambda r=i, c=j: shoot_firing_grid(r, c),
+                        font=('Comic Sans', 10, 'bold'), bg='#48aadb', fg='white')
+        button.place(x=700 + j * (button_width * 10 + button_padding), y=175 + i * (button_height * 15 + button_padding))
+        firing_row.append(button)
+    firing_buttons.append(firing_row)
+
+# Ship placement grid
+for i in range(row_count):
+    button_row = []
+    for j, col in enumerate(columns):
+        button = Button(window, width=button_width, height=button_height, text=f"{i + 1}{col}",
+                        command=lambda r=i, c=j: place_ship(r, c),
+                        font=('Comic Sans', 10, 'bold'), bg='#48aadb', fg='white')
+        button.place(x=30 + j * (button_width * 10 + button_padding), y=175 + i * (button_height * 15 + button_padding))
+        button_row.append(button)
+    buttons.append(button_row)
+
+# Random ship generator for the second grid
+while count < 17:  # to ensure exactly 17 different ships
+    row = rn.randint(0, 9)
+    col = rn.randint(0, 9)
+    if (row, col) not in placed_ships_1:
+        placed_ships_1[(row, col)] = True
+        count += 1
+#print(placed_ships_1)
+
+window.mainloop()
